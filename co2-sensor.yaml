@@ -1,0 +1,133 @@
+esphome:
+  name: co2-sensor
+  friendly_name: CO2 sensor
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Co2-Sensor Fallback Hotspot"
+    password: "JGmIlsHK8A0g"
+
+web_server:
+
+prometheus:
+
+i2c:
+  frequency: 300kHz
+  # sda: GPIO21
+  # scl: GPIO22
+
+uart:
+  - id: uart_bus2
+    baud_rate: 9600
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO18
+      inverted: True
+      mode:
+        input: true
+        pullup: true
+    name: "Button 1"
+  - platform: gpio
+    pin:
+      number: GPIO19
+      inverted: True
+      mode:
+        input: true
+        pullup: true
+    name: "Button 2"
+
+sensor:
+  - platform: mhz19
+    id: mhz19sensor
+    co2:
+      name: "MH-Z19 CO2 Value"
+      id: mhz19co2
+    temperature:
+      name: "MH-Z19 Temperature"
+    uart_id: uart_bus2
+    automatic_baseline_calibration: false
+    warmup_time: 75s
+    update_interval: 60s
+  - platform: bme280_i2c
+    temperature:
+      name: "BMP280 Temperature"
+      id: bmp280temperature
+      oversampling: 16x
+    humidity:
+      name: "BMP280 Humidity"
+      id: bmp280humidity
+    pressure:
+      name: "BMP280 Pressure"
+      id: bmp280pressure
+    address: 0x76
+    update_interval: 60s
+
+button:
+  - platform: template
+    name: "MH-Z19: Calibrate zero"
+    on_press:
+      - mhz19.calibrate_zero: mhz19sensor
+
+font:
+  # gfonts://family[@weight]
+  - file: "gfonts://Roboto"
+    id: roboto_20
+    size: 20
+  - file: "gfonts://Roboto"
+    id: roboto_14
+    size: 14
+  - file: "gfonts://Roboto"
+    id: roboto_12
+    size: 12
+  - file: "gfonts://Roboto Condensed"
+    id: robotoc_12
+    size: 10
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    rotation: 180
+    id: ssd1306
+    lambda: |-
+      it.print(0, 0, id(roboto_12), "Temp");
+      if (id(bmp280temperature).has_state()) {
+        it.printf(48, 36, id(roboto_20), TextAlign::BOTTOM_RIGHT, "%.1f", id(bmp280temperature).state - 3.0);
+        it.print(64, 36, id(roboto_14), TextAlign::BOTTOM_RIGHT, "°C");
+      }
+
+      it.print(64, 0, id(roboto_12), "Humid");
+      if (id(bmp280humidity).has_state()) {
+        it.printf(116, 36, id(roboto_20), TextAlign::BOTTOM_RIGHT, "%.1f", id(bmp280humidity).state);
+        it.print(128, 36, id(roboto_14), TextAlign::BOTTOM_RIGHT, "%");
+      }
+
+      it.print(0, 32, id(roboto_12), "Pressure");
+      if (id(bmp280pressure).has_state()) {
+        it.printf(48, 66, id(roboto_20), TextAlign::BOTTOM_RIGHT, "%.0f", id(bmp280pressure).state);
+        it.print(64, 64, id(robotoc_12), TextAlign::BOTTOM_RIGHT, "hPa");
+      }
+
+      it.print(64, 32, id(roboto_12), "Co2");
+      if (id(mhz19co2).has_state()) {
+        it.printf(110, 66, id(roboto_20), TextAlign::BOTTOM_RIGHT, "%.0f", id(mhz19co2).state);
+        it.print(128, 64, id(robotoc_12), TextAlign::BOTTOM_RIGHT, "ppm");
+      } else {
+        it.print(128, 64, id(robotoc_12), TextAlign::BOTTOM_RIGHT, "warming up...");
+      }
