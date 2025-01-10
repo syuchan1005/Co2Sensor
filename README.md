@@ -1,6 +1,6 @@
 # Co2 Sensor
 
-[!Co2Sensor](sensor.jpg)
+![Co2Sensor](sensor.jpg)
 
 ## Parts
 
